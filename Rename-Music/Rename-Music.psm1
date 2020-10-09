@@ -14,8 +14,8 @@
 # Get-FileMetaData -folder (gci e:\music -Recurse -Directory).FullName 
 # note: this MUST point to a folder, and not to a file. 
 # ----------------------------------------------------------------------------- 
-Function Get-MusicMetadata {
-  <# 
+Function Rename-Music {
+    <# 
    .Synopsis 
     This function gets file metadata and returns it as a custom PS Object  
    .Description 
@@ -52,62 +52,57 @@ Function Get-MusicMetadata {
      Http://www.ScriptingGuys.com 
  #Requires -Version 2.0 
  #> 
-  Param(
-    [Parameter(ValueFromPipelineByPropertyName = $true)]
-    [Alias("Path")]
-    [String[]]$FullName
-  )
-  Begin {
-    $Shell = New-Object -ComObject Shell.Application
-  }
-  Process {
-    [System.IO.FileInfo[]]$Files = @()
-    $Path = Get-Item $FullName
-    If ($Path -Is [System.IO.DirectoryInfo]) {
-      # We were given a directory
-      # Find all the files in the directory and queue them for processing
-      ForEach ($File in (Get-ChildItem -Path $Path -Recurse | Where-Object { $_ -Is [System.IO.FileInfo] })) {
-        $Files += $File
-      }
-    } ElseIf ($Path -Is [System.IO.FileInfo]) {
-      # We were given a file
-      $Files += $Path
+    Param(
+        [Parameter(ValueFromPipelineByPropertyName = $true)]
+        [Alias("Path")]
+        [String[]]
+        $FullName,
+
+        [String]
+        $Destination
+    )
+    Begin {
+        [String[]]$WindowsFileNameReservedCharacters = '<','>',':','"','/','\','|','?','*'
     }
-
-    ForEach ($File in $Files) {
-      $ShellDirectory = $Shell.NameSpace($File.DirectoryName)
-      $ShellFile = $ShellDirectory.Items() | Where-Object { $_.Name -eq $File.Name }[0]
-
-      $FileMetadata = New-Object PSOBJECT
-      For ($a = 0; $a -le 266; $a++) {  
-        If ($ShellDirectory.getDetailsOf($ShellFile, $a)) {
-          $hash += @{$($ShellDirectory.getDetailsOf($ShellDirectory.items, $a)) = $($ShellDirectory.getDetailsOf($ShellFile, $a)) } 
-          $FileMetadata | Add-Member $hash 
-          $hash.clear()  
+    Process {
+        # TODO: Refactor this to a common library, since it's used in multiple places
+        # If provided a directory, process all files in the directory (recursively)
+        [System.IO.FileInfo[]]$Files = @()
+        $Path = Get-Item $FullName
+        If ($Path -Is [System.IO.DirectoryInfo]) {
+            # We were given a directory
+            # Find all the files in the directory and queue them for processing
+            ForEach ($File in (Get-ChildItem -Path $Path -Recurse | Where-Object { $_ -Is [System.IO.FileInfo] })) {
+                $Files += $File
+            }
         }
-      }
-      $FileMetadata 
+        ElseIf ($Path -Is [System.IO.FileInfo]) {
+            # We were given a file
+            $Files += $Path
+        }
+
+        # If no $Destination was provided, use the $Path directory (or its parent directory if a file)
+        If ($Destination -eq $null) {
+            If ($Path -Is [System.IO.DirectoryInfo]) {
+                $Destination = $Path.FullName
+            } ElseIf ($Path -Is [System.IO.FileInfo]) {
+                $Destination = $Path.Directory.FullName
+            }
+        }
+
+        ForEach ($File in $Files) {
+            $FileMetadata = Get-MusicMetadata $File
+
+            # Eventually, we'll provide a way to specify a format. Until then, we'll standardize naming to `Artist(s) - Title`
+
+            # Sanitize the metadata we'll use
+            $ContributingArtists = $FileMetadata.'Contributing artists'.Split([IO.Path]::GetInvalidFileNameChars()) | ForEach-Object { $_.Trim() } | Join-String -Separator ' _ '
+            $Title = $FileMetadata.Title.Split([IO.Path]::GetInvalidFileNameChars()) | ForEach-Object { $_.Trim() } | Join-String -Separator ' _ '
+            $Extension = Split-Path -Path $FileMetadata.Path -Extension
+
+            Rename-Item -Path $File -NewName (-Join (($ContributingArtists, $Title -Join " - "), $Extension))
+        }
     }
-  }
-
-  # foreach ($sFolder in $folder) {
-  #   $a = 0 
-  #   $objShell = New-Object -ComObject Shell.Application 
-  #   $objFolder = $objShell.namespace($sFolder) 
-
-  #   foreach ($File in $objFolder.items()) {  
-  #     $FileMetaData = New-Object PSOBJECT 
-  #     for ($a ; $a -le 266; $a++) {  
-  #       if ($objFolder.getDetailsOf($File, $a)) { 
-  #         $hash += @{$($objFolder.getDetailsOf($objFolder.items, $a)) = $($objFolder.getDetailsOf($File, $a)) } 
-  #         $FileMetaData | Add-Member $hash 
-  #         $hash.clear()  
-  #       }
-  #     }  
-  #     $a = 0 
-  #     $FileMetaData 
-  #   }
-  # }
 }
 
-Export-ModuleMember -Function Get-MusicMetadata
+Export-ModuleMember -Function Rename-Music

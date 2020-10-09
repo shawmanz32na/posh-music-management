@@ -15,12 +15,12 @@ Holdouts that prefer to purchase their music rather than subscribe to a streamin
 Before using any posh-music-management utility, it must be imported into the PowerShell session using `Import-Module`.
 
 
-### Get-MusicMetaData
+### Get-MusicMetadata
 
 _**This utility is not yet built - the tool in place is just a placeholder**_
 
 ```
-Import \path\to\posh-music-management\Get-MusicMetaData
+Import-Module \path\to\posh-music-management\Get-MusicMetadata
 Get-MusicMetaData -Path \path\to\music
 ```
 
@@ -30,7 +30,7 @@ Get-MusicMetaData -Path \path\to\music
 _**This utility is not yet built - the tool in place is just a placeholder**_
 
 ```
-Import \path\to\posh-music-management\Move-Music
+Import-Module \path\to\posh-music-management\Move-Music
 Move-Music -Path \path\to\music -Destination \path\to\organized\music
 ```
 
@@ -38,7 +38,7 @@ Move-Music -Path \path\to\music -Destination \path\to\organized\music
 ### Find-DuplicateSongs
 
 ```
-Import \path\to\posh-music-management\Find-DuplicateSongs
+Import-Module \path\to\posh-music-management\Find-DuplicateSongs
 Find-DuplicateSongs -Path \path\to\music -Recurse
 ```
 e.g.:
